@@ -1,105 +1,64 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
-import xss from 'xss-clean';
-import compression from 'compression';
 import dotenv from 'dotenv';
-
-import connectDB from './utils/database.js';
+import rateLimit from 'express-rate-limit';
 import userRoutes from './routes/userRoutes.js';
-import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
 
 dotenv.config();
 
 const app = express();
 
 // Connect to MongoDB Atlas
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ MongoDB Atlas Connected');
+  } catch (error) {
+    console.error('❌ MongoDB Connection Error:', error);
+  }
+};
 connectDB();
 
-// Security Middleware
-app.use(helmet()); // Security headers
-app.use(xss()); // XSS protection
-app.use(mongoSanitize()); // NoSQL injection protection
+// Middleware
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://mern-crud-frontend.vercel.app',
+    'https://*.vercel.app'
+  ],
+  credentials: true
+}));
 
-// Rate limiting
+app.use(express.json());
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes',
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: 15 * 60 * 1000,
+  max: 100
 });
-app.use('/api', limiter);
+app.use(limiter);
 
-// CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = process.env.CORS_ORIGIN 
-      ? process.env.CORS_ORIGIN.split(',')
-      : ['http://localhost:3000', 'https://*.vercel.app'];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-};
-app.use(cors(corsOptions));
-
-// Body parser
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-
-// Compression
-app.use(compression());
-
-// API Documentation at root
-app.get('/', (req, res) => {
-  res.json({
-    message: '🚀 MERN CRUD API is running',
-    version: '1.0.0',
-    endpoints: {
-      users: {
-        create: 'POST /api/users',
-        getAll: 'GET /api/users',
-        getStats: 'GET /api/users/stats',
-        getOne: 'GET /api/users/:id',
-        update: 'PUT /api/users/:id',
-        delete: 'DELETE /api/users/:id'
-      }
-    },
-    documentation: 'https://github.com/your-username/mern-crud-full',
-    health: 'GET /api/health',
-    status: 'operational'
-  });
-});
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    database: 'connected',
-    environment: process.env.NODE_ENV
-  });
-});
-
-// API Routes
+// Routes
 app.use('/api/users', userRoutes);
 
-// 404 handler
-app.use(notFound);
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'MERN CRUD API',
+    endpoints: {
+      users: '/api/users',
+      health: '/api/health'
+    }
+  });
+});
 
-// Error handler
-app.use(errorHandler);
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
 
 // Export for Vercel
 export default app;
