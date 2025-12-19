@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import validator from 'validator';
+//import validator from 'validator';
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -15,10 +15,10 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    validate: {
-      validator: validator.isEmail,
-      message: 'Please provide a valid email address'
-    }
+    // validate: {
+    //   validator: validator.isEmail,
+    //   message: 'Please provide a valid email address'
+    // }
   },
   age: {
     type: Number,
@@ -58,12 +58,12 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     trim: true,
-    validate: {
-      validator: function(v) {
-        return /^[\+]?[1-9][\d]{0,15}$/.test(v);
-      },
-      message: 'Please provide a valid phone number'
-    }
+    // validate: {
+    //   validator: function(v) {
+    //     return /^[\+]?[1-9][\d]{0,15}$/.test(v);
+    //   },
+    //   message: 'Please provide a valid phone number'
+    // }
   },
   avatar: {
     type: String,

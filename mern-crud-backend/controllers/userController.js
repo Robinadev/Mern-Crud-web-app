@@ -1,5 +1,5 @@
-import User from '../models/User.js';
-import asyncHandler from 'express-async-handler';
+import User from '../models/Users.js';
+import asyncHandler from 'express-async-handler'; // Add this import
 
 // @desc    Create a new user
 // @route   POST /api/users
@@ -10,8 +10,10 @@ export const createUser = asyncHandler(async (req, res) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    res.status(409);
-    throw new Error('User with this email already exists');
+    return res.status(409).json({
+      success: false,
+      message: 'User with this email already exists'
+    });
   }
   
   // Create user
@@ -89,8 +91,10 @@ export const getUserById = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id).select('-__v');
   
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
   }
   
   res.status(200).json({
@@ -106,16 +110,20 @@ export const updateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
   }
   
   // Check if email is being changed and if new email already exists
   if (req.body.email && req.body.email !== user.email) {
     const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
-      res.status(409);
-      throw new Error('Email already in use');
+      return res.status(409).json({
+        success: false,
+        message: 'Email already in use'
+      });
     }
   }
   
@@ -143,8 +151,10 @@ export const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    return res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
   }
   
   await user.deleteOne();
@@ -160,6 +170,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
 // @route   GET /api/users/stats
 // @access  Public
 export const getUserStats = asyncHandler(async (req, res) => {
+  // Check if status field exists in schema
   const stats = await User.aggregate([
     {
       $group: {
@@ -192,10 +203,13 @@ export const getUserStats = asyncHandler(async (req, res) => {
     { $limit: 5 }
   ]);
   
+  // Handle empty stats
+  const result = stats[0] || { totalUsers: 0, averageAge: 0, statusStats: [] };
+  
   res.status(200).json({
     success: true,
     data: {
-      ...stats[0],
+      ...result,
       topCities: cityStats
     }
   });
